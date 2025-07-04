@@ -1,0 +1,110 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <iostream>
+using namespace std;
+struct Tovari
+{
+    char name[100];
+    int Kolvo;
+    double Cena;
+};
+
+struct TNode {
+    int l;
+    int r;
+    TNode* a;
+};
+
+struct stack {
+    TNode* top = nullptr;
+
+    void push(int lt, int rt) {
+        TNode* spt = new TNode;
+        spt->l = lt;
+        spt->r = rt;
+        spt->a = top;
+        top = spt;
+    }
+
+    void pop(int& lt, int& rt) {
+        TNode* spt = top;
+        lt = spt->l;
+        rt = spt->r;
+        top = spt->a;
+        delete spt;
+    }
+};
+
+void quickSort(Tovari arr[], int size) {
+    int left, right;
+    stack stack;
+    stack.push(0, size - 1);
+
+    while (stack.top) {
+        stack.pop(left, right);
+
+        if (left >= right) {
+            continue;
+        }
+
+        int middle = left + (right - left) / 2;
+        double pivot = arr[middle].Cena;
+        int i = left, j = right;
+
+        while (i <= j) {
+            while (arr[i].Cena < pivot) i++;
+            while (arr[j].Cena > pivot) j--;
+
+            if (i <= j) {
+                Tovari temp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = temp;
+                i++;
+                j--;
+            }
+        }
+
+        if (left < j) stack.push(left, j);
+        if (i < right) stack.push(i, right);
+    }
+}
+
+const int maxSize = 5;
+
+int readFromFile(Tovari records[], const char* filename) {
+    FILE* file;
+    if (fopen_s(&file, filename, "rb") != 0 || !file) {
+        cout << "Error opening file" << endl;
+        return 0;
+    }
+    int count = 0;
+    while (count < maxSize && fread(&records[count], sizeof(Tovari), 1, file)) {
+        count++;
+    }
+    fclose(file);
+    return count;
+}
+
+int main() {
+    const char* filename = "D:\\programs\\c++\\Console_LR11\\Console_LR11\\tovari.bin";
+
+    Tovari records[maxSize];
+    int size = readFromFile(records, filename);
+    if (size == 0) {
+        cout << "No data read from file." << endl;
+        return 1;
+    }
+    cout << "DO sort:" << endl;
+    for (int i = 0; i < size; i++) {
+        printf("%s - %d units, Price: %.2f USD\n", records[i].name, records[i].Kolvo, records[i].Cena);
+    }
+    quickSort(records, size);
+    cout << endl;
+    cout << "After sort:" << endl;
+    for (int i = 0; i < size; i++) {
+        printf("%s - %d units, Price: %.2f USD\n", records[i].name, records[i].Kolvo, records[i].Cena);
+    }
+
+    return 0;
+}
