@@ -1,0 +1,309 @@
+#include<iostream>
+#include<string>
+#include<vector>
+#include<stdexcept>
+using namespace std;
+
+void error(const string& s)
+{
+	throw runtime_error(s);
+}
+
+void error(const string& s, const string& s2)
+{
+	error(s + s2);
+}
+
+
+
+struct Token {
+	char kind;
+	double value;
+	string name;
+	Token(char ch) :kind(ch), value(0) { }
+	Token(char ch, double val) :kind(ch), value(val) { }
+	Token(char ch, string n) :kind(ch), name(n) { }
+};
+
+
+
+struct Token_stream {
+	bool full;
+	Token buffer;
+public:
+	Token_stream() :full(0), buffer(0) { }
+
+	Token get();
+	void unget(Token t) { buffer = t; full = true; }
+
+	void ignore(char);
+};
+
+const char let = 'L'; // Let is used for declaration of variables
+const char quit = 'E'; // Quit is used to exit the program
+const char print = ';'; // Prints the result of calculation
+const char number = '8'; // Indicates that this is a number
+const char name = 'a'; // Indicates that this is a variable
+const char assign = '='; // Indicates assignment of a new value to the variable
+
+Token Token_stream::get() // 
+{
+	if (full) { full = false; return buffer; }
+	char ch;
+	cin >> ch;
+	switch (ch) {
+	case '(':
+	case ')':
+	case '+':
+	case '-':
+	case '*':
+	case '/':
+	case '%':
+	case ';':
+		return Token(ch);
+	case assign:
+		return Token(assign);
+	case '.':
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+	{
+		cin.unget();
+		double val;
+		cin >> val;
+		return Token(number, val);
+	}
+	default:
+		if (isalpha(ch)) {
+			string s;
+			s += ch;
+			while (cin.get(ch) && (isalpha(ch) || isdigit(ch) || ch == '_')) s += ch;
+			cin.unget(); // возвращает последний элемент в поток 
+			if (s == "let") return Token(let);
+
+
+			if (s == "exit") return Token(quit);
+			return Token(name, s);
+		}
+		error("Bad token");
+	}
+	return Token(0);
+}
+
+void Token_stream::ignore(char c)
+{
+	if (full && c == buffer.kind) {
+		full = false;
+		return;
+	}
+	full = false;
+	char ch;
+	while (cin >> ch)
+		if (ch == c) return;
+}
+
+struct Variable {
+	string name;
+	double value;
+	Variable(string n, double v) :name(n), value(v) { }
+};
+
+vector<Variable> names;
+
+double get_value(string s)
+{
+	for (Variable i : names) {
+		if (i.name == s) return i.value;
+	}
+	error("get: undefined name ", s);
+	return 0;
+}
+
+void set_value(string s, double d)
+{
+	for (int i = 0; i < names.size(); ++i)
+		if (names[i].name == s) {
+			names[i].value = d;
+			return;
+		}
+	error("set: undefined name ", s);
+	
+}
+
+bool is_declared(string s)
+{
+	for (int i = 0; i < names.size(); ++i)
+		if (names[i].name == s) return true;
+	return false;
+}
+
+Token_stream ts;
+
+double expression();
+
+double primary();
+
+
+
+
+
+double primary()
+{
+	Token t = ts.get();
+	switch (t.kind) {
+	case '(':
+	{
+		double d = expression();
+		t = ts.get();
+		if (t.kind != ')') error("')' expected");
+		return d;
+	}
+
+
+	case '-':
+		return -primary();
+	case number:
+		return t.value;
+	case name:
+	{
+		string s = t.name;
+		t = ts.get();
+		if (t.kind == assign) set_value(s, expression());
+		else ts.unget(t);
+		return get_value(s);
+	}
+	default:
+		error("primary expected");
+	}
+	return 0;
+}
+
+double term()
+{
+	double left = primary();
+	while (true) {
+		Token t = ts.get();
+		switch (t.kind) {
+		case '*':
+			left *= primary();
+			break;
+		case '/':
+		{
+			double d = primary();
+			if (d == 0) error("division by zero");
+			left /= d;
+			break;
+		}
+
+		case '%':
+		{
+			double d = primary();
+			if (d == 0) error("division by zero");
+			left = fmod(left, d);
+			break;
+		}
+		default:
+			ts.unget(t);
+			if (left == -0) return 0;
+			return left;
+		}
+
+	}
+}
+
+double expression()
+{
+	double left = term();
+	while (true) {
+		Token t = ts.get();
+		switch (t.kind) {
+		case '+':
+			left += term();
+			break;
+		case '-':
+			left -= term();
+			break;
+		default:
+			ts.unget(t);
+			return left;
+		}
+	}
+}
+
+double declaration()
+{
+	Token t = ts.get();
+	if (t.kind != 'a') error("name expected in declaration");
+	string name = t.name;
+	if (is_declared(name)) error(name, " declared twice");
+	Token t2 = ts.get();
+	if (t2.kind != '=') error("= missing in declaration of ", name);
+	double d = expression();
+	names.push_back(Variable(name, d));
+	return d;
+}
+
+
+
+double statement()
+{
+	Token t = ts.get();
+	switch (t.kind) {
+	case let:
+		return declaration();
+	default:
+		ts.unget(t);
+		return expression();
+	}
+}
+
+void clean_up_mess()
+{
+	ts.ignore(print);
+}
+
+const string prompt = "> ";
+const string result = "= ";
+
+void calculate()
+{
+	while (true) try {
+		cout << prompt;
+		Token t = ts.get();
+		while (t.kind == print) t = ts.get();
+		if (t.kind == quit) return;
+		ts.unget(t);
+		cout << result << statement() << endl;
+	}
+	catch (runtime_error& e) {
+		cerr << e.what() << endl;
+		clean_up_mess();
+	}
+}
+
+int main()
+try {
+	names.push_back(Variable("pi", 3.14159));
+
+	calculate();
+	return 0;
+}
+catch (exception& e) {
+	cerr << "exception: " << e.what() << endl;
+	char c;
+	while (cin >> c && c != ';');
+	return 1;
+}
+catch (...) {
+	cerr << "exception\n";
+	char c;
+	while (cin >> c && c != ';');
+	return 2;
+}
