@@ -1,0 +1,90 @@
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* left;
+    Node* right;
+};
+
+Node* createBalancedBST(int arr[], int start, int end) {
+    if (start > end)return nullptr;
+    int mid = (start + end) / 2;
+    Node* root = new Node{ arr[mid],nullptr,nullptr };
+
+    root->left = createBalancedBST(arr, start, mid - 1);
+    root->right = createBalancedBST(arr, mid+1, end);
+
+    return root;
+}
+
+
+
+void preOrder(Node* root) {
+    if (!root)return;
+    cout << root->data << " ";
+    preOrder(root->left);
+    preOrder(root->right);
+
+}
+void inOrder(Node* root) { // Симметричный обход (Left → Root → Right)
+    if (!root) return;
+    inOrder(root->left);
+    cout << root->data << " ";
+    inOrder(root->right);
+}
+void postOrder(Node* root) { // Обратный обход (Left → Right → Root)
+    if (!root) return;
+    postOrder(root->left);
+    postOrder(root->right);
+    cout << root->data << " ";
+}
+
+void calculateSumAndCount(Node* root, int& summ, int& count) {
+    if (!root)return;
+    summ += root->data;
+    count++;
+    calculateSumAndCount(root->left,summ,count);
+    calculateSumAndCount(root->right, summ, count);
+
+}
+
+Node* findClosest(Node* root, double avg, Node*& closest) {
+    if (!root) return closest;
+    if (!closest || abs(root->data - avg) < abs(closest->data - avg)) {
+        closest = root;
+    }
+    findClosest(root->left, avg, closest);
+    findClosest(root->right, avg, closest);
+
+    return closest;
+}
+
+int main()
+{
+    int sortedArr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 15 };
+    int n = sizeof(sortedArr) / sizeof(sortedArr[0]);
+
+    Node* root = createBalancedBST(sortedArr, 0, n - 1);
+    int sum = 0, count = 0;
+    calculateSumAndCount(root, sum, count);
+    double avg = (double)sum / count;
+
+
+    cout << "InOrder: ";
+    inOrder(root);
+    cout << endl;
+    cout << "preOrder: ";
+    preOrder(root);
+    cout << endl;
+    cout << "postOrder: ";
+    postOrder(root);
+    cout << endl << "---------------" << endl;
+
+    Node* closest = nullptr;
+    closest = findClosest(root, avg, closest);
+
+    cout << "Sred: " << avg << endl;
+    cout << "Uzel: " << closest->data << endl;
+    return 0;
+}
