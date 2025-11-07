@@ -1,0 +1,193 @@
+#pragma once
+#include <time.h>
+#include <stdlib.h>
+namespace SnakeGame {
+
+	using namespace System;
+	using namespace System::ComponentModel;
+	using namespace System::Collections;
+	using namespace System::Windows::Forms;
+	using namespace System::Data;
+	using namespace System::Drawing;
+	using namespace System::Collections::Generic;
+
+	/// <summary>
+	/// Сводка для GameForm
+	/// </summary>
+	public ref class GameForm : public System::Windows::Forms::Form
+	{
+	public:
+		GameForm(void)
+		{
+			InitializeComponent();
+			//
+			//TODO: добавьте код конструктора
+			//
+		}
+
+	protected:
+		/// <summary>
+		/// Освободить все используемые ресурсы.
+		/// </summary>
+		~GameForm()
+		{
+			if (components)
+			{
+				delete components;
+			}
+		}
+		virtual void OnPaint(System::Object^ obj, PaintEventArgs^ e) override {
+			Graphics^ g = e->Graphics;
+
+			Brush^ fruitBrush = gcnew SolidBrush(Color::Red);
+			g->FillRectangle(fruitBrush, fruitPosition.X, fruitPosition.Y, blocksize, blocksize);
+
+			Brush^ snakeBrush = gcnew SolidBrush(Color::Green);
+			for each(Point el in snake)
+				g->FillRectangle(snakeBrush, el.X, el.Y, blocksize, blocksize);
+		}
+
+	private:
+		/// <summary>
+		/// Обязательная переменная конструктора.
+		/// </summary>
+		System::ComponentModel::Container ^components;
+		List <Point>^ snake;
+		Point fruitPosition;
+		const int blocksize = 20;
+
+		int fruitcount = 0;
+		Label^ scorelable;
+
+
+		Timer^ timer;
+		int moveX=1, moveY=0;
+
+#pragma region Windows Form Designer generated code
+		/// <summary>
+		/// Требуемый метод для поддержки конструктора — не изменяйте 
+		/// содержимое этого метода с помощью редактора кода.
+		/// </summary>
+		void InitializeComponent(void)
+		{
+			this->SuspendLayout();
+			// 
+			// GameForm
+			// 
+			this->AutoScaleDimensions = System::Drawing::SizeF(8, 16);
+			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
+			this->ClientSize = System::Drawing::Size(800, 800);
+		    this->Text = L"SnakeGame";
+			this->BackColor = Color::Black;
+			this->Load += gcnew System::EventHandler(this, &GameForm::GameForm_Load);
+			this->ResumeLayout(false);
+
+			scorelable = gcnew Label();
+			scorelable->ForeColor = Color::White;
+			scorelable->BackColor = Color::Transparent;
+			scorelable->Text = "Score: 0";
+			scorelable->Location = Point(10, 10);
+			this->Controls->Add(scorelable);
+
+
+			snake = gcnew List<Point>();
+			snake->Add(Point(100, 100));
+			srand(time(NULL));
+			PlaceFruit();
+
+			timer = gcnew Timer();
+			timer->Interval = 200;
+			timer->Tick += gcnew EventHandler(this, &GameForm::OnTimerTick);
+			timer->Start();
+
+
+			this->Paint += gcnew PaintEventHandler(this, &GameForm::OnPaint);
+			this->KeyDown += gcnew KeyEventHandler(this, &GameForm::OnKeyDown);
+		}
+#pragma endregion
+		
+		void PlaceFruit() {
+			int maxX = this->ClientSize.Width / blocksize;
+			int maxY = this->ClientSize.Height / blocksize;
+
+			do {
+				fruitPosition = Point(rand() % maxX * blocksize, rand() % maxY * blocksize);
+			} while (snake->Contains(fruitPosition));
+			
+		}
+
+		void OnTimerTick(Object^ obj, EventArgs^ e) {
+			MoveSnake();
+
+			if (snake[0].X < 0 || snake[0].Y < 0 || snake[0].X>= this->ClientSize.Width || snake[0].Y>=this->ClientSize.Height) {
+				timer->Stop();
+				MessageBox::Show("Game over");
+				return;
+			}
+
+			if (snake->Count >= 4) {
+				for (int i = 1; i < snake->Count; i++) {
+					if (snake[0] == snake[i]) {
+						timer->Stop();
+						MessageBox::Show("Game over You ate yourself!");
+						return;
+					}
+				}
+			}
+
+
+			if (snake[0] == fruitPosition) {
+				fruitcount++;
+				scorelable->Text = "Score: " + fruitcount.ToString(); 
+				GrowthSnake();
+				PlaceFruit();
+			}
+
+			this->Invalidate();
+		}
+
+		void MoveSnake() {
+			Point newHead = snake[0];
+			
+			newHead.X += moveX * blocksize;
+			newHead.Y += moveY * blocksize; 
+			snake->Insert(0, newHead);
+			snake->RemoveAt(snake->Count - 1);
+		}
+
+		void GrowthSnake() {
+			Point newHead = snake[0];
+
+			newHead.X += moveX * blocksize;
+			newHead.Y += moveY * blocksize;
+			snake->Insert(0, newHead);
+
+		}
+
+		void OnKeyDown(Object^ obj, KeyEventArgs^ e) {
+			switch(e->KeyCode) {
+			case Keys::Up:
+				moveX = 0;
+				moveY = -1;
+				break;
+			case Keys::Down:
+				moveX = 0;
+				moveY = 1;
+				break;
+			case Keys::Left:
+				moveX = -1;
+				moveY = 0;
+				break;
+			case Keys::Right:
+				moveX = 1;
+				moveY = 0;
+				break;
+			}
+		}
+
+
+
+	private: System::Void GameForm_Load(System::Object^ sender, System::EventArgs^ e) {
+	}
+	};
+}
